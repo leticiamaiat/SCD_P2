@@ -1,1 +1,2 @@
-rod kk
+# rod kk
+print("a")
