@@ -1,23 +1,58 @@
 from basecode import *
 
-# Fila de pedidos
-request_queue = queue.Queue()
-log = []
-num_clients = 5
 
-process_sockets = {}  # Estrutura de dados para armazenar os sockets dos processos
+class Coordinator:
+    def __init__(self, host_addr=("localhost", 12345), n_clients=5):
+        """
+		Uma thread apenas para receber a conexão de um novo processo, 
+		uma thread executando o algoritmo de exclusão mútua distribuída,
+  		e a outra atendendo a interface (terminal)
+
+		Args:
+		host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
+		n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
+  
+		"""
+
+        # Fila de pedidos
+        self.num_clients = n_clients
+
+        # Estrutura de dados para armazenar os sockets dos processos
+        self.process_sockets = {}
+        self.request_queue = queue.Queue()
+        self.log = []
+
+        # Início do servidor coordenador
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind(host_addr)
+        self.server_socket.listen(self.num_clients)
+
+        # Threads
+        pass
+
+    def handle_new_connection(self, server_socket):
+        # Função para tratar novos processos
+        while True:
+            client_socket, addr = server_socket.accept()
+            # Usar a porta como identificador do processo (apenas exemplo)
+            process_id = addr[1]
+            # Adiciona o cliente conectado na lista de sockets conectados
+            self.process_sockets[process_id] = client_socket
+
+            # Criando threads de forma desenfreada? Onde armazenar?
+            threading.Thread(target=handle_process, args=(client_socket, process_id)).start()
 
 
 # TODO: Converter essas funções em métodos de uma classe
-def handle_new_connection(server_socket):
-    # Função para tratar novos processos
-    while True:
-        client_socket, addr = server_socket.accept()
-        # Usar a porta como identificador do processo (apenas exemplo)
-        process_id = addr[1]
-        process_sockets[process_id] = client_socket
-        threading.Thread(target=handle_process, args=(
-            client_socket, process_id)).start()
+# def handle_new_connection(server_socket):
+#     # Função para tratar novos processos
+#     while True:
+#         client_socket, addr = server_socket.accept()
+#         # Usar a porta como identificador do processo (apenas exemplo)
+#         process_id = addr[1]
+#         process_sockets[process_id] = client_socket
+#         threading.Thread(target=handle_process, args=(
+#             client_socket, process_id)).start()
 
 
 def handle_process(client_socket, process_id):
@@ -57,11 +92,6 @@ def terminal_interface():
         elif cmd == '3':
             break
 
-
-# Início do servidor coordenador
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind(host_addr)
-server_socket.listen(num_clients)
 
 # TODO: Não estamos armazenado nenhuma das threads !!
 # Threads do coordenador
