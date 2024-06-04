@@ -1,2 +1,0 @@
-# rod kk
-print("a")
