@@ -15,7 +15,7 @@ class Coordinator:
 		"""
 
 		# Inicializando o logging
-		logging.basicConfig(filename='coordinator.log', level=logging.INFO,
+		logging.basicConfig(filename='/log/coordinator.log', level=logging.INFO,
 							format='%(asctime)s - %(message)s')
 
 		# Fila de pedidos

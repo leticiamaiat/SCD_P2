@@ -20,7 +20,7 @@ def access_critical_section(process_id, coordinator_ip, r, k):
         
         #Seção crítica
         current_time = time.time()
-        with open('resultado.txt', 'a') as f:
+        with open('log/resultado.txt', 'a') as f:
             f.write(f'{process_id}|{current_time}\n')
 
         # "Utilização" do serviço
