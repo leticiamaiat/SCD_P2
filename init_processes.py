@@ -1,8 +1,19 @@
-from basecode import *
+from coord_basecode import *
 import random
+import argparse
 
-# TODO: Rever esse papel todo - Muito confuso
+def start_process(num_processes, coordinator_ip, tentativas, tempo_espera):
+    processes = []
 
+    for process_id in range(1, num_processes + 1):
+        t = threading.Thread(target=process_routine, args=(process_id, coordinator_ip, tentativas, tempo_espera))
+        processes.append(t)
+
+    for p in processes:
+        p.start()
+
+    for p in processes:
+        p.join()
 
 def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 
@@ -29,9 +40,9 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 
 			# A partir daqui o processo deve estar na região critíca com exclusão mutua
 			# Seção crítica
-			current_time = time.time()
+			current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 			with open('log/resultado.txt', 'a') as f:
-				f.write(f'{process_id}|{current_time}\n')
+				f.write(f'{process_id} | GRANTED | {current_time}\n')
 
 			# "Utilização" do serviço
 			time.sleep(min_time_consuming * random.randint(1, 3))
@@ -49,12 +60,18 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 		print("A conexão com o Coordenador foi recusada, verifique se o Coordenador está ativo e tente novamente mais tarde.")
 
 
-if __name__ == '__main__':
-    # Exemplo de execução do processo
-    process_id = "192.168.0.5"  # Identificador do processo
-    # coordinator_ip = 'localhost'
-    # coordinator_port = 12345
-    r = 5  # Número de repetições
-    k = 2  # Tempo na região crítica
+if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description="Código que utiliza de um coordenador de processos para gerenciar requisições críticas em condição de corrida.\nEsse código gera N processos que irão requisitar em loop o serviço crítico.")
+    
+    parser.add_argument('-r', '--requests', type=int, required=True, help="Numero de loops que cada processo executará.")
+    parser.add_argument('-w', '--wait', type=int, required=True, help="Tempo de espera MINIMO que os processos passa dentro da região crítica, em segundos")
+    parser.add_argument('-o', '--over', type=int, default=0, help="Numero de processo A MAIS. Objetivo de simular um numero superior de clientes")
 
-    process_routine(process_id, host_addr, r, k)
+    args = parser.parse_args()
+
+    qntd_de_requests = args.requests
+    tempo_de_espera = args.wait
+    over_clients = args.over
+    
+    start_process(n_clients + over_clients, host_addr, qntd_de_requests, tempo_de_espera)
