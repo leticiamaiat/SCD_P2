@@ -5,15 +5,12 @@ import threading
 from basecode import host_addr
 from process_gpt import process_routine
 
-MASK_NET = "192.168.0."
-
 
 def start_process(num_processes, coordinator_ip, r, k):
     processes = []
 
     for process_id in range(1, num_processes + 1):
-        t = threading.Thread(target=process_routine, args=(
-            MASK_NET + str(process_id), coordinator_ip, r, k))
+        t = threading.Thread(target=process_routine, args=(process_id, coordinator_ip, r, k))
         processes.append(t)
 
     for p in processes:
@@ -25,7 +22,7 @@ def start_process(num_processes, coordinator_ip, r, k):
 
 if __name__ == "__main__":
     num_processes = 5
-    r = 15
+    r = 10
     k = 2
 
     start_process(num_processes, host_addr, r, k)
