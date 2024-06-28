@@ -7,6 +7,7 @@ def access_critical_section(process_id, coordinator_ip, r, k):
     client_socket.connect(coordinator_ip)
 
     for _ in range(r):
+        
         # Envia REQUEST
         request_message = f'1|{process_id}|000000'.ljust(package_size).encode()
         client_socket.send(request_message)

@@ -1,21 +1,22 @@
 from basecode import *
 import logging
+import threading
 
 
 class Coordinator:
 	def __init__(self, host_addr=("localhost", 12345), n_clients=5):
 		"""
-						Uma thread apenas para receber a conexão de um novo processo,
-						uma thread executando o algoritmo de exclusão mútua distribuída
-						e a outra atendendo a interface (terminal)
+		Uma thread apenas para receber a conexão de um novo processo,
+		uma thread executando o algoritmo de exclusão mútua distribuída
+		e a outra atendendo a interface (terminal)
 
-						Args:
-						- host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
-						- n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
+		Args:
+		- host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
+		- n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
 		"""
 
 		# Inicializando o logging
-		logging.basicConfig(filename='/log/coordinator.log', level=logging.INFO,
+		logging.basicConfig(filename='log/coordinator.log', level=logging.INFO,
 							format='%(asctime)s - %(message)s')
 
 		# Fila de pedidos
@@ -30,13 +31,12 @@ class Coordinator:
 		self.server_socket.bind(host_addr)
 		self.server_socket.listen(self.num_clients)
 
+		self.lock = threading.Condition()
+
 		# Threads
-		self.interface_routine = threading.Thread(
-			target=self.terminal_interface).start()
-		self.handle_connection = threading.Thread(
-			target=self.handle_new_connection).start()
-		self.handle_requests = threading.Thread(
-			target=self.handle_requests).start()
+		self.interface_routine = threading.Thread(target=self.terminal_interface).start()
+		self.handle_connection = threading.Thread(target=self.handle_new_connection).start()
+		self.handle_g_requests = threading.Thread(target=self.handle_requests).start()
 
 	def handle_new_connection(self):
 		# Função para tratar novos processos
@@ -50,15 +50,14 @@ class Coordinator:
 			# Criando threads de forma desenfreada? Onde armazenar?
 			threading.Thread(target=self.handle_process, args=(
 				client_socket, process_id)).start()
-			logging.info(
-				f'Nova conexão estabelecida com o processo {process_id}.')
+			logging.info(f'Nova conexão estabelecida com o processo {process_id}.')
 
 	def handle_process(self, client_socket, process_id):
 		# Função para tratar mensagens de um processo
 		"""
 		O coordenador deve gerar um log com
-				todas as mensagens recebidas e enviadas (incluindo o instante da mensagem,
-				o tipo de mensagem, e o processo origem ou destino).
+		todas as mensagens recebidas e enviadas (incluindo o instante da mensagem,
+		o tipo de mensagem, e o processo origem ou destino).
 
 		"""
 		while True:
@@ -68,40 +67,63 @@ class Coordinator:
 					self.request_queue.put(process_id)
 					self.log_message('REQUEST', msg, process_id)
 
-				# if msg.startswith('2|'):
-				#     self.log.append((int(time.time()), 'GRANT', process_id))
-
-				elif msg.startswith('3|'):  # RELEASE
+				elif msg.startswith('3|'): # RELEASE
+					# "Desbloquear" o proximo atendimento => Atender o próximo cliente da queue e enviar "GRANT"
 					self.log_message('RELEASE', msg, process_id)
-					# "Desbloquear" o proximo atendimento => Atender o pr´óximo cliente da queue e enviar "GRANT"
+					# Notify
+					with self.lock:
+						self.lock.notify()
 			except Exception as e:
-				logging.error(
-					f'Erro ao processar a mensagem do processo {process_id}: {e}')
+				logging.error(f'Erro ao processar a mensagem do processo {process_id}: {e}')
 				break
 
 	def handle_requests(self):
-			while True:
-				if not self.request_queue.empty():
-					process_id = self.request_queue.get()
-					grant_msg = f'2|{process_id}|000000'.ljust(package_size).encode()
-					self.conn_sockets[process_id].send(grant_msg)
-					self.log_message('GRANT', grant_msg, process_id)
+    	#  Ideia
+		# while True:
+		# 	with self.lock:
+	
+		# 		while not self.request_queue.empty():
+		# 			self.lock.wait()
+		
+		# 		process_id = self.request_queue.get()
+		# 		grant_msg = f'2|{process_id}|000000'.ljust(package_size).encode()
+	
+		# 		self.conn_sockets[process_id].send(grant_msg)
+		# 		self.log_message('GRANT', grant_msg, process_id)
+
+    
+		while True:
+			if not self.request_queue.empty():
+				with self.lock:
+					self.lock.wait()
+				process_id = self.request_queue.get()
+				grant_msg = f'2|{process_id}|000000'.ljust(
+					package_size).encode()
+				self.conn_sockets[process_id].send(grant_msg)
+				self.log_message('GRANT', grant_msg, process_id)
 
 	def log_message(self, msg_type, msg, process_id):
 		timestamp = time.time()
 		log_entry = (timestamp, msg_type, msg, process_id)
 		self.log.append(log_entry)
 		logging.info(f'{msg_type} from/to process {process_id}: {msg}')
-	
+
 	def terminal_interface(self):
 		# Função para comandos do terminal
+		input_msg = """\
+** Interface do Coordenador **
+	1- Listar Pedidos.
+	2- Registro de Atendimentos
+	3- Encerrar Coordenador
+Aguardando entrada: 
+"""
 		while True:
-			cmd = input("** Interface do Coordenador **\n\t1- Listar Pedidos.\n\t2- Registro de Atendimentos\n\t3- Encerrar Coordenador\n\t4- Listar Log\nAguardando entrada: ")
+			cmd = input(input_msg)
 			if cmd == '1':
 				print("Fila de pedidos:", list(self.request_queue.queue))
 			elif cmd == '2':
 				# count = {pid: self.log.count(('GRANT', pid))
-						#  for pid in self.conn_sockets.keys()}
+				#  for pid in self.conn_sockets.keys()}
 				count = {pid: sum(1 for log in self.log if log[1] == 'GRANT' and log[3] == pid) for pid in self.conn_sockets.keys()}
 
 				print("Contagem de atendimentos:", count)
@@ -111,10 +133,6 @@ class Coordinator:
 					client_socket.close()
 				self.server_socket.close()
 				break
-			elif cmd == '4':
-				print(self.log)
-				# for entry in self.log:
-				# 	print(entry)
 			else:
 				print("Comando inválido.")
 
