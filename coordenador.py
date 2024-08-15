@@ -15,10 +15,18 @@ class Coordinator:
         - host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
         - n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
         """
+        logdir = os.path.curdir + "/log"
+        logfiles = ["coordinator.log" , "resultado.txt"]
+        if not os.path.exists(logdir): os.makedirs(logdir)
+        for logfile in logfiles:
+            if not os.path.isfile(logdir + logfile):
+                f = open(logdir + "/" + logfile, 'w')
+                f.close()
+            
 
         # Inicializando o logging
-        logging.basicConfig(filename='log/coordinator.log',
-                            level=logging.INFO, format='%(message)s - %(asctime)s')
+        logging.basicConfig(filename=logdir+"/"+logfiles[0], level=logging.INFO, format='%(message)s - %(asctime)s')
+
         # Mensagem da interface de comando
         self.input_msg = """** Interface do Coordenador **\n 1- Listar Pedidos.\n 2- Registro de Atendimentos\n 3- Encerrar Coordenador\nAguardando entrada: """
 
