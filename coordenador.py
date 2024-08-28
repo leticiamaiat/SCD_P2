@@ -1,4 +1,3 @@
-from socket import SHUT_RD
 from coord_basecode import *
 import os
 import logging
@@ -21,7 +20,7 @@ class StoppableThread(threading.Thread):
 
 
 class Coordinator:
-    def __init__(self, host_addr=("localhost", 12345), n_clients=5, logdir=os.path.curdir + "/log", coord_logfilename="coordinator.log", clients_logfilename="resultado.txt"):
+    def __init__(self, host_addr=("localhost", 12345), n_clients=5, logdir=f"{os.path.curdir}/log", coord_logfilename="coordinator.log", clients_logfilename="resultado.txt"):
         """
         Uma thread apenas para receber a conexão de um novo processo,
         uma thread executando o algoritmo de exclusão mútua distribuída
@@ -32,9 +31,9 @@ class Coordinator:
         - n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
         """
 
-
         # Criação do diretório de log, caso o diretório de log não exista, crie.
-        if not os.path.exists(logdir): os.makedirs(logdir)
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
 
         # Para cada arquivo de log, caso o arquivo não exista, crie.
         for logfile in [coord_logfilename, clients_logfilename]:
@@ -43,7 +42,8 @@ class Coordinator:
                     pass
 
         # Inicializando o logging
-        logging.basicConfig(filename=f"{logdir}/{coord_logfilename}", level=logging.INFO, format='%(message)s - %(asctime)s')
+        logging.basicConfig(filename=f"{logdir}/{coord_logfilename}",
+                            level=logging.INFO, format='%(message)s - %(asctime)s')
 
         # Mensagem da interface de comando
         self.input_msg = """** Interface do Coordenador **\n 1- Listar Pedidos.\n 2- Registro de Atendimentos\n 3- Encerrar Coordenador\nAguardando entrada: """
@@ -53,27 +53,30 @@ class Coordinator:
 
         # Estrutura de dados para armazenar os sockets dos processos
         self.conn_sockets = {}
-        
-        # 
+
+        #
         self.thread_list = []
-        
+
         # Fila de atendimento
         self.request_queue = queue.Queue()
         self.log = []
 
         # Início do servidor coordenador
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.setsockopt(
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(host_addr)
         self.server_socket.listen(self.num_clients)
-        
-		# Semaforo utilizado para gerenciar a exclusão mútua
+
+        # Semaforo utilizado para gerenciar a exclusão mútua
         self.lock = threading.Semaphore()
 
         # Threads
-        self.handle_connection = StoppableThread(target=self._handle_new_connection)
+        self.handle_connection = StoppableThread(
+            target=self._handle_new_connection)
         self.handle_g_requests = StoppableThread(target=self._handle_requests)
-        self.interface_routine = StoppableThread(target=self._terminal_interface)
+        self.interface_routine = StoppableThread(
+            target=self._terminal_interface)
 
         self.handle_connection.start()
         self.handle_g_requests.start()
@@ -137,24 +140,21 @@ class Coordinator:
                 # Aguarda um sinal de liberação caso o lock está em utilização
                 self.lock.acquire()
                 process_id = self.request_queue.get()
-                grant_msg = f'2|{process_id}|000000'.ljust(package_size).encode()
+                grant_msg = f'2|{process_id}|000000'.ljust(
+                    package_size).encode()
                 self.conn_sockets[process_id].send(grant_msg)
                 self._log_message('GRANT', grant_msg.decode(), process_id)
 
     def _log_message(self, msg_type, msg, process_id):
         # Registra o timestamp
         timestamp = time.time()
-        
+
         # Cria o registro de log e add ao log
         self.log.append((int(timestamp), msg_type, msg, process_id))
 
-        # if msg_type == "GRANT":
-        #     logging.info(f'{msg_type} to process {process_id}: {msg}')
-        # else:
-        #     logging.info(f'{msg_type} from process {process_id}: {msg}')
-        
-        # Formata e registra a mensagem no log do coordenador 
-        log_message = msg_type + ("to" if msg_type == "GRANT" else "from") + f' process {process_id}: {msg}'
+        # Formata e registra a mensagem no log do coordenador
+        log_message = f"{msg_type} " + ("to" if msg_type ==
+                                        "GRANT" else "from") + f' process {process_id}: {msg}'
         logging.info(log_message)
 
     def _clear_terminal(self):
@@ -196,9 +196,12 @@ class Coordinator:
 
 
 if __name__ == "__main__":
-    n_clients = int(input("Digite o numero de clientes que o coordenador atenderá:"))
-    if n_clients <= 0:
-        print("Numero de clientes invállido. Abortando coordenador...")
+    n_clients = int(
+        input("Digite o numero de clientes que o coordenador atenderá:"))
+
+    if n_clients > 0:
+        os.system("cls") if os.name == "nt" else os.system("clear")
+        Coord = Coordinator(n_clients=n_clients)
+    else:
+        print("Número de clientes inválido. Abortando coordenador...")
         exit(0)
-    os.system("cls") if os.name == "nt" else os.system("clear")    
-    Coord = Coordinator(n_clients=n_clients)
