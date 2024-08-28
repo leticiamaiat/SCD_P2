@@ -1,7 +1,9 @@
-from coord_basecode import *
 import os
 import logging
 import queue
+import socket
+import threading
+import time
 
 
 class StoppableThread(threading.Thread):
@@ -20,15 +22,19 @@ class StoppableThread(threading.Thread):
 
 
 class Coordinator:
-    def __init__(self, host_addr=("localhost", 12345), n_clients=5, logdir=f"{os.path.curdir}/log", coord_logfilename="coordinator.log", clients_logfilename="resultado.txt"):
+    def __init__(self, n_clients=5, host_addr=("localhost", 12345), package_size=10, logdir=f"{os.path.curdir}/log", coord_logfilename="coordinator.log", client_logfilename="resultado.txt"):
         """
         Uma thread apenas para receber a conexão de um novo processo,
         uma thread executando o algoritmo de exclusão mútua distribuída
         e a outra atendendo a interface (terminal)
 
         Args:
-        - host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
         - n_clients (int, optional): Num de clientes/conexões a serem atendidos. Defaults to 5.
+        - host_addr (tuple, optional): Endereço e Porta para conexão. Defaults to ("localhost", 12345).
+        - package_size: 
+        - logdir:
+        - coord_filename:
+        - client_filename:
         """
 
         # Criação do diretório de log, caso o diretório de log não exista, crie.
@@ -36,7 +42,7 @@ class Coordinator:
             os.makedirs(logdir)
 
         # Para cada arquivo de log, caso o arquivo não exista, crie.
-        for logfile in [coord_logfilename, clients_logfilename]:
+        for logfile in [coord_logfilename, client_logfilename]:
             if not os.path.isfile(logdir + logfile):
                 with open(f"{logdir}/{logfile}", "w") as f:
                     pass
@@ -100,7 +106,7 @@ class Coordinator:
     def _handle_process(self, client_socket, process_id):
         while True:
             try:
-                msg = client_socket.recv(package_size).decode()
+                msg = client_socket.recv(self.package_size).decode()
                 if msg.startswith('1|'):  # REQUEST
                     self.request_queue.put(process_id)
                     self._log_message('REQUEST', msg, process_id)
@@ -141,7 +147,7 @@ class Coordinator:
                 self.lock.acquire()
                 process_id = self.request_queue.get()
                 grant_msg = f'2|{process_id}|000000'.ljust(
-                    package_size).encode()
+                    self.package_size).encode()
                 self.conn_sockets[process_id].send(grant_msg)
                 self._log_message('GRANT', grant_msg.decode(), process_id)
 
@@ -196,8 +202,7 @@ class Coordinator:
 
 
 if __name__ == "__main__":
-    n_clients = int(
-        input("Digite o numero de clientes que o coordenador atenderá:"))
+    n_clients = int(input("Digite o numero de clientes que o coordenador atenderá:"))
 
     if n_clients > 0:
         os.system("cls") if os.name == "nt" else os.system("clear")

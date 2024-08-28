@@ -1,6 +1,8 @@
-from coord_basecode import *
 import random
 import argparse
+import socket
+import threading
+import time
 
 def start_process(num_processes, tentativas, tempo_espera, coordinator_ip):
     processes = []
@@ -62,6 +64,9 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 
 
 if __name__ == "__main__":
+    
+    host_addr = ('localhost', 12345)
+    package_size = 10
     
     parser = argparse.ArgumentParser(description="Código que utiliza de um coordenador de processos para gerenciar requisições críticas em condição de corrida.\nEsse código gera N processos que irão requisitar em loop o serviço crítico.")
     
