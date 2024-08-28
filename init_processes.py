@@ -2,13 +2,14 @@ from coord_basecode import *
 import random
 import argparse
 
-def start_process(num_processes, coordinator_ip, tentativas, tempo_espera):
+def start_process(num_processes, tentativas, tempo_espera, coordinator_ip):
     processes = []
-
+	# Criar N processos que farão M tentativas para o coordenador
     for process_id in range(1, num_processes + 1):
         t = threading.Thread(target=process_routine, args=(process_id, coordinator_ip, tentativas, tempo_espera))
         processes.append(t)
-
+        
+	# Inicia todos os processos simultaneamente
     for p in processes:
         p.start()
 
@@ -64,14 +65,14 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Código que utiliza de um coordenador de processos para gerenciar requisições críticas em condição de corrida.\nEsse código gera N processos que irão requisitar em loop o serviço crítico.")
     
-    parser.add_argument('-r', '--requests', type=int, required=True, help="Numero de loops que cada processo executará.")
-    parser.add_argument('-w', '--wait', type=int, required=True, help="Tempo de espera MINIMO que os processos passa dentro da região crítica, em segundos")
-    parser.add_argument('-o', '--over', type=int, default=0, help="Numero de processo A MAIS. Objetivo de simular um numero superior de clientes")
+    parser.add_argument('-c', '--clients', type=int, default=5, help="Numero de processos requisitando o coordenador. Default: 5")
+    parser.add_argument('-r', '--requests', type=int, required=True, help="Numero de requisições que cada processo executará.")
+    parser.add_argument('-w', '--wait', type=int, default=3, help="Tempo de espera MINIMO que os processos passa dentro da região crítica, em segundos")
 
     args = parser.parse_args()
 
-    qntd_de_requests = args.requests
-    tempo_de_espera = args.wait
-    over_clients = args.over
+    n_requests = args.requests
+    n_clients = args.clients
+    wait_time = args.wait
     
-    start_process(n_clients + over_clients, host_addr, qntd_de_requests, tempo_de_espera)
+    start_process(n_clients, n_requests, wait_time, host_addr)
