@@ -56,6 +56,10 @@ class Coordinator:
 
         # Fila de pedidos
         self.num_clients = n_clients
+        
+        # Tamanho da mensagem de comunicação 
+        self.package_size = package_size
+        
 
         # Estrutura de dados para armazenar os sockets dos processos
         self.conn_sockets = {}
@@ -69,11 +73,9 @@ class Coordinator:
 
         # Início do servidor coordenador
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(host_addr)
         self.server_socket.listen(self.num_clients)
-
         # Semaforo utilizado para gerenciar a exclusão mútua
         self.lock = threading.Semaphore()
 
@@ -103,42 +105,34 @@ class Coordinator:
 
             self.thread_list.append(thread)
 
-    def _handle_process(self, client_socket, process_id):
+    def _handle_process(self, client_socket, porta_tcp):
         while True:
             try:
                 msg = client_socket.recv(self.package_size).decode()
                 if msg.startswith('1|'):  # REQUEST
-                    self.request_queue.put(process_id)
-                    self._log_message('REQUEST', msg, process_id)
+                    
+                    processId = msg.split("|")[1]
+                    obj_aux = self.conn_sockets.pop(porta_tcp,  None)
+                    
+                    if obj_aux is not None:
+                        self.conn_sockets[processId] = obj_aux
+                     
+                    self.request_queue.put(processId)
+                    self._log_message('REQUEST', msg, processId)
 
                 elif msg.startswith('3|'):  # RELEASE
-                    self._log_message('RELEASE', msg, process_id)
                     self.lock.release()
+                    self._log_message('RELEASE', msg, processId)
 
             except ConnectionResetError:
                 # Exceção gerada quando o cliente desconecta
-                logging.error(f'DISCONNECT from {process_id}')
-                # Remove o processo da lista de conexões
-                self.conn_sockets.pop(process_id, None)
+                logging.error(f'DISCONNECT from {porta_tcp}')
+                # # Remove o processo da lista de conexões
+                # self.conn_sockets.pop(process_id, None)
                 break
             except Exception as e:
-                logging.error(
-                    f'Erro ao processar a mensagem do processo {process_id}: {e}')
+                logging.error(f'Erro ao processar a mensagem do processo {porta_tcp}: {e}')
                 break
-
-    def _shutdown_coordinator(self):
-        """Encerra todas as threads e fecha o socket do coordenador."""
-
-        self.handle_g_requests.stop()
-        self.handle_connection.stop()
-        self.interface_routine.stop()
-
-        [thread.stop() for thread in self.thread_list]
-
-        self.server_socket.close()
-
-        print("Todos os processos finalizaram. Encerrando o Coordenador.")
-        os._exit(0)
 
     def _handle_requests(self):
         while True:
@@ -150,22 +144,6 @@ class Coordinator:
                     self.package_size).encode()
                 self.conn_sockets[process_id].send(grant_msg)
                 self._log_message('GRANT', grant_msg.decode(), process_id)
-
-    def _log_message(self, msg_type, msg, process_id):
-        # Registra o timestamp
-        timestamp = time.time()
-
-        # Cria o registro de log e add ao log
-        self.log.append((int(timestamp), msg_type, msg, process_id))
-
-        # Formata e registra a mensagem no log do coordenador
-        log_message = f"{msg_type} " + ("to" if msg_type ==
-                                        "GRANT" else "from") + f' process {process_id}: {msg}'
-        logging.info(log_message)
-
-    def _clear_terminal(self):
-        input("Pressione Enter para continuar...")
-        os.system("cls") if os.name == "nt" else os.system("clear")
 
     def _terminal_interface(self):
         # Função para comandos do terminal
@@ -199,6 +177,35 @@ class Coordinator:
 
             else:
                 print("Comando inválido.")
+
+    def _shutdown_coordinator(self):
+        """Encerra todas as threads e fecha o socket do coordenador."""
+
+        self.handle_g_requests.stop()
+        self.handle_connection.stop()
+        self.interface_routine.stop()
+
+        [thread.stop() for thread in self.thread_list]
+
+        self.server_socket.close()
+
+        print("Todos os processos finalizaram. Encerrando o Coordenador.")
+        os._exit(0)
+
+    def _log_message(self, msg_type, msg, process_id):
+        # Registra o timestamp
+        timestamp = time.time()
+
+        # Cria o registro de log e add ao log
+        self.log.append((int(timestamp), msg_type, msg, process_id))
+
+        # Formata e registra a mensagem no log do coordenador
+        log_message = f"{msg_type} " + ("to" if msg_type == "GRANT" else "from") + f' process {process_id}: {msg}'
+        logging.info(log_message)
+
+    def _clear_terminal(self):
+        input("Pressione Enter para continuar...")
+        os.system("cls") if os.name == "nt" else os.system("clear")
 
 
 if __name__ == "__main__":

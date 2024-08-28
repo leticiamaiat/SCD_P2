@@ -4,6 +4,8 @@ import socket
 import threading
 import time
 
+package_size = 10
+
 def start_process(num_processes, tentativas, tempo_espera, coordinator_ip):
     processes = []
 	# Criar N processos que farão M tentativas para o coordenador
@@ -23,11 +25,15 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 	try:
 		# Inicialmente conecta ao socket do coordenador
 		client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		# client_socket.settimeout(60)
 		client_socket.connect(coordinator_ip)
 
 		# Repetirá a rotina n_tries vezes
 		for _ in range(n_tries):
-
+      
+			# Aguarde um tempo aleatório antes de solicitar
+			time.sleep(random.randint(2, 5))
+   
 			# Envia REQUEST
 			request_message = f'1|{process_id}|000000'.ljust(package_size).encode()
 			client_socket.send(request_message)
@@ -56,17 +62,20 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 			realease_message = f'3|{process_id}|000000'.ljust(package_size).encode()
 			client_socket.send(realease_message)
 			print(f'Processo {process_id} enviou RELEASE')
+			
+   
 
 		client_socket.close()
 		print(f'Processo {process_id}: Conexão fechada')
 	except ConnectionRefusedError:
 		print("A conexão com o Coordenador foi recusada, verifique se o Coordenador está ativo e tente novamente mais tarde.")
+	except (BrokenPipeError, TimeoutError):
+		print(f"A conexão foi encerrada devido ao término do serviço do coordenador. Encerrando processo {process_id}.")
 
 
 if __name__ == "__main__":
     
     host_addr = ('localhost', 12345)
-    package_size = 10
     
     parser = argparse.ArgumentParser(description="Código que utiliza de um coordenador de processos para gerenciar requisições críticas em condição de corrida.\nEsse código gera N processos que irão requisitar em loop o serviço crítico.")
     
