@@ -27,7 +27,8 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 		client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		# client_socket.settimeout(60)
 		client_socket.connect(coordinator_ip)
-
+		service = True
+  
 		# Repetirá a rotina n_tries vezes
 		for _ in range(n_tries):
       
@@ -46,7 +47,12 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 				if grant_msg.startswith('2|'):  # Recebe GRANT
 					print(f'Processo {process_id} recebeu GRANT')
 					break
-
+				if grant_msg.startswith('4|'):
+					service = False
+					print(f"A conexão foi encerrada devido ao término do serviço do coordenador. Encerrando processo {process_id}.")
+					break
+ 
+			if not service : break
 			# A partir daqui o processo deve estar na região critíca com exclusão mutua
 			# Seção crítica
 			current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
@@ -63,13 +69,13 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 			client_socket.send(realease_message)
 			print(f'Processo {process_id} enviou RELEASE')
 			
-   
-
 		client_socket.close()
+  
 		print(f'Processo {process_id}: Conexão fechada')
+  
 	except ConnectionRefusedError:
 		print("A conexão com o Coordenador foi recusada, verifique se o Coordenador está ativo e tente novamente mais tarde.")
-	except (BrokenPipeError, TimeoutError):
+	except BrokenPipeError:
 		print(f"A conexão foi encerrada devido ao término do serviço do coordenador. Encerrando processo {process_id}.")
 
 
@@ -79,8 +85,8 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Código que utiliza de um coordenador de processos para gerenciar requisições críticas em condição de corrida.\nEsse código gera N processos que irão requisitar em loop o serviço crítico.")
     
-    parser.add_argument('-c', '--clients', type=int, default=5, help="Numero de processos requisitando o coordenador. Default: 5")
     parser.add_argument('-r', '--requests', type=int, required=True, help="Numero de requisições que cada processo executará.")
+    parser.add_argument('-c', '--clients', type=int, default=5, help="Numero de processos requisitando o coordenador. Default: 5")
     parser.add_argument('-w', '--wait', type=int, default=3, help="Tempo de espera MINIMO que os processos passa dentro da região crítica, em segundos")
 
     args = parser.parse_args()

@@ -80,11 +80,9 @@ class Coordinator:
         self.lock = threading.Semaphore()
 
         # Threads
-        self.handle_connection = StoppableThread(
-            target=self._handle_new_connection)
+        self.handle_connection = StoppableThread(target=self._handle_new_connection)
         self.handle_g_requests = StoppableThread(target=self._handle_requests)
-        self.interface_routine = StoppableThread(
-            target=self._terminal_interface)
+        self.interface_routine = StoppableThread(target=self._terminal_interface)
 
         self.handle_connection.start()
         self.handle_g_requests.start()
@@ -94,13 +92,12 @@ class Coordinator:
         # Função para tratar novos processos
         while not self.handle_connection.stopped():  # Verifica se a thread foi parada
             client_socket, addr = self.server_socket.accept()
+            
+            connection_port = addr[1]
 
-            process_id = addr[1]
+            self.conn_sockets[connection_port] = client_socket
 
-            self.conn_sockets[process_id] = client_socket
-
-            thread = StoppableThread(
-                target=self._handle_process, args=(client_socket, process_id))
+            thread = StoppableThread(target=self._handle_process, args=(client_socket, connection_port))
             thread.start()
 
             self.thread_list.append(thread)
@@ -181,9 +178,12 @@ class Coordinator:
     def _shutdown_coordinator(self):
         """Encerra todas as threads e fecha o socket do coordenador."""
 
-        self.handle_g_requests.stop()
         self.handle_connection.stop()
+        self.handle_g_requests.stop()
         self.interface_routine.stop()
+        
+        for processId, client in self.conn_sockets.items():
+            client.send(f"4|{processId}|000000".ljust(self.package_size).encode())
 
         [thread.stop() for thread in self.thread_list]
 
