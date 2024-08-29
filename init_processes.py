@@ -25,7 +25,7 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 	try:
 		# Inicialmente conecta ao socket do coordenador
 		client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		# client_socket.settimeout(60)
+		
 		client_socket.connect(coordinator_ip)
 		service = True
   
@@ -71,7 +71,7 @@ def process_routine(process_id, coordinator_ip, n_tries, min_time_consuming):
 			
 		client_socket.close()
   
-		print(f'Processo {process_id}: Conexão fechada')
+		print(f'Processo {process_id}: Conexão fechada.')
   
 	except ConnectionRefusedError:
 		print("A conexão com o Coordenador foi recusada, verifique se o Coordenador está ativo e tente novamente mais tarde.")
